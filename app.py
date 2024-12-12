@@ -309,7 +309,10 @@ def delete_item(item_id):
         # Debug print to check the user_id and item_id
         print(f"User ID: {user_id} is attempting to delete item ID: {item_id}")
 
-        # Delete the item from the database
+        # First, delete related images from detail_images
+        cursor.execute('DELETE FROM detail_images WHERE item_id = %s', (item_id,))
+        
+        # Now delete the item from the items table
         cursor.execute('DELETE FROM items WHERE id = %s AND seller_id = %s', (item_id, user_id))
         conn.commit()
 

@@ -458,35 +458,58 @@ def item_detail(item_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Fetch item details
+        # Debug print
+        print(f"Fetching details for item ID: {item_id}")
+        
+        # Get item details with all required fields
         cursor.execute('''
-            SELECT 
-                id, 
-                title AS name, 
-                `condition`,  -- Ensure this matches the column name
-                seller_id, 
-                image_url AS grid_image, 
-                description,
-                meetup_place,
-                seller_phone
-            FROM items 
-            WHERE id = %s
-        ''', (item_id,))
+            SELECT i.id,
+                   i.title AS name,
+                   i.price,
+                   i.description,
+                   i.seller_id,
+                   COALESCE(i.image_url, %s) AS grid_image,  -- Use default if image_url is None
+                   i.meetup_place,
+                   i.seller_phone,
+                   u.username,
+                   u.profile_picture,
+                   'Used - Good' AS item_quality,  -- Default value for now
+                   GROUP_CONCAT(DISTINCT di.image_url) AS detail_images
+            FROM items i
+            LEFT JOIN users u ON i.seller_id = u.id
+            LEFT JOIN detail_images di ON i.id = di.item_id
+            WHERE i.id = %s
+            GROUP BY i.id
+        ''', (DEFAULT_IMAGE_URL, item_id))
+        
         item = cursor.fetchone()
-
-        if item:
-            # Fetch seller information
-            cursor.execute('SELECT username, profile_picture FROM users WHERE id = %s', (item['seller_id'],))
-            seller = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            # Pass the item and seller data to the template
-            return render_template('item_detail.html', item=item, seller=seller)
-        else:
+        
+        # Debug print
+        print(f"Item details: {item}")
+        
+        if item is None:
+            print(f"No item found with ID: {item_id}")
             return "Item not found", 404
+            
+        # Convert detail_images string to list if it exists
+        if item.get('detail_images'):
+            item['detail_images'] = item['detail_images'].split(',')
+        else:
+            item['detail_images'] = []
+            
+        cursor.close()
+        conn.close()
+        
+        # Pass all required variables to template
+        return render_template('item_detail.html', 
+                               item=item,
+                               item_quality=item.get('item_quality', 'Used - Good'))
+        
     except Exception as e:
-        print(f"Error fetching item details: {str(e)}")
+        print(f"Error in item_detail route: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return "An error occurred", 500
 
 

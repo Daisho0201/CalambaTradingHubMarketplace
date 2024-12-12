@@ -53,10 +53,12 @@ def allowed_file(filename):
 # Database connection
 def get_db_connection():
     return mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='',  # No password
-        database='marketplace'
+        host=os.getenv('MYSQL_HOST'),
+        user=os.getenv('MYSQL_USER'),
+        password=os.getenv('MYSQL_PASSWORD'),
+        database=os.getenv('MYSQL_DATABASE'),
+        port=int(os.getenv('MYSQL_PORT')),
+        ssl_mode='REQUIRED'
     )
 
 # Create the items table

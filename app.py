@@ -651,83 +651,6 @@ def remove_saved_item(item_id):
 
 
 
-@app.route('/adminresponse', methods=['GET'])
-def admin_response():
-    """Renders the admin page with the list of proofs."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT * FROM handle_request")
-        columns = [column[0] for column in cursor.description]  # Get column names
-        requests = [dict(zip(columns, row)) for row in cursor.fetchall()]  # Map rows to dictionaries
-        
-        print("Fetched data:", requests)  # Debugging line to check what data is returned
-        
-        return render_template('adminresponse.html', requests=requests)
-    except Exception as e:
-        flash(f"Error retrieving data: {e}", "danger")
-        return redirect(url_for('admin_response'))
-    finally:
-        cursor.close()
-        conn.close()
-
-
-
-
-
-@app.route('/confirm_request/<string:reference_type>', methods=['POST'])
-def confirm_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Confirmed' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Confirmed', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Confirmed')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been confirmed.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-@app.route('/reject_request/<string:reference_type>', methods=['POST'])
-def reject_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Rejected' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Rejected', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Rejected')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been rejected.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-
-
 
 
 
@@ -1128,14 +1051,18 @@ def add_category_column():
 # Call the function to add the column when the application starts
 add_category_column()
 
-def is_admin(user_id):
+@app.route('/admin/review', methods=['GET'])
+@login_required
+def adminreview():
+    # No longer checking if the user is an admin
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT role FROM users WHERE id = %s', (user_id,))
-    role = cursor.fetchone()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM items WHERE status = "pending"')
+    items = cursor.fetchall()
     cursor.close()
     conn.close()
-    return role and role[0] == 'admin'  # Adjust based on your role management
+
+    return render_template('adminreview.html', items=items)
 
 if __name__ == '__main__':
     app.run(debug=True)  # Start the Flask application

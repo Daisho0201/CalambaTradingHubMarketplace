@@ -12,6 +12,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
+import traceback
 
 # Load environment variables from .env file
 load_dotenv()
@@ -990,6 +991,7 @@ def post_item():
                                 VALUES (%s, %s)
                             ''', (item_id, detail_url))
                             
+
                         except Exception as e:
                             print(f"Error uploading detail image: {str(e)}")
 
@@ -1005,7 +1007,7 @@ def post_item():
         print(f"Error in post_item route: {str(e)}")
         print(traceback.format_exc())
         return "An error occurred", 500
-
+        
 # Add this new route to handle profile picture updates
 @app.route('/update_profile_picture', methods=['POST'])
 @login_required

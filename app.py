@@ -205,7 +205,7 @@ def main_index():
         cursor = conn.cursor(dictionary=True)
 
         # Update the query to only fetch items with 'approved' status
-        cursor.execute('SELECT id, title as name, price, image_url as grid_image FROM items WHERE status = "approved" ORDER BY id DESC')
+        cursor.execute('SELECT id, name, price, grid_image FROM items WHERE status = "approved" ORDER BY id DESC')
         all_items = cursor.fetchall()
 
         cursor.close()
@@ -1051,6 +1051,79 @@ def add_category_column():
 
 # Call the function to add the column when the application starts
 add_category_column()
+
+def add_status_column():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            ALTER TABLE items 
+            ADD COLUMN status ENUM('pending', 'approved', 'declined') DEFAULT 'pending'
+        ''')
+        conn.commit()
+    except mysql.connector.Error as err:
+        print(f"Error updating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Call this function when your app starts
+# Add this near the bottom of your file, before the if __name__ == '__main__': line
+update_users_table()
+
+# Add this function to create necessary tables if they don't exist
+def create_detail_images_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create detail_images table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS detail_images (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            item_id INT NOT NULL,
+            image_url VARCHAR(255) NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES items(id)
+        )
+    ''')
+    
+    # Add meetup_place and seller_phone columns to items table if they don't exist
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS meetup_place VARCHAR(255)")
+        cursor.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS seller_phone VARCHAR(20)")
+    except Exception as e:
+        print(f"Note: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# Call this when the app starts
+create_detail_images_table()
+
+def add_category_column():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if the category column exists
+        cursor.execute("SHOW COLUMNS FROM items LIKE 'category'")
+        result = cursor.fetchone()
+
+        # If the column does not exist, add it
+        if not result:
+            cursor.execute("ALTER TABLE items ADD COLUMN category VARCHAR(255)")
+            print("Category column added to items table.")
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    except Error as e:
+        print(f"Error while adding category column: {str(e)}")
+
+# Call the function to add the column when the application starts
+add_category_column()
+
 
 
 if __name__ == '__main__':

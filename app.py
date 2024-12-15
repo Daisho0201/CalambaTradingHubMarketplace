@@ -117,6 +117,7 @@ def create_items_table():
             grid_image VARCHAR(255),
             detail_images TEXT,
             user_id INT,
+            status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',  -- Add status column
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')

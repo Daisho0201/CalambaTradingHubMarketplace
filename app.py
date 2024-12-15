@@ -113,7 +113,7 @@ def create_items_table():
                 category VARCHAR(100) NOT NULL,
                 meetup_place VARCHAR(255) NOT NULL,
                 seller_phone VARCHAR(15) NOT NULL,
-                grid_image VARCHAR(255),  -- Ensure this column exists
+                grid_image VARCHAR(255),
                 detail_images TEXT,
                 user_id INT,
                 status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',  -- Add status column

@@ -968,7 +968,7 @@ def post_item():
 
             # Insert the main item with meetup_place and seller_phone
             cursor.execute('''
-                INSERT INTO items (title, price, description, seller_id, image_url, meetup_place, seller_phone)
+                INSERT INTO items (name, price, description, seller_id, image_url, meetup_place, seller_phone)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (title, price, description, seller_id, image_url, meetup_place, seller_phone))
             
@@ -991,6 +991,7 @@ def post_item():
                                 VALUES (%s, %s)
                             ''', (item_id, detail_url))
                             
+
                         except Exception as e:
                             print(f"Error uploading detail image: {str(e)}")
 
@@ -1006,7 +1007,7 @@ def post_item():
         print(f"Error in post_item route: {str(e)}")
         print(traceback.format_exc())
         return "An error occurred", 500
-        
+
 # Add this new route to handle profile picture updates
 @app.route('/update_profile_picture', methods=['POST'])
 @login_required

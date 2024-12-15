@@ -1128,53 +1128,14 @@ def add_category_column():
 # Call the function to add the column when the application starts
 add_category_column()
 
-# Ensure only admin users can access this route
 def is_admin(user_id):
-    # Implement your logic to check if the user is an admin
-    return True  # Placeholder, replace with actual logic
-
-@app.route('/admin/review', methods=['GET'])
-@login_required
-def adminreview():
-    if not is_admin(session.get('user_id')):
-        return redirect(url_for('main_index'))
-
-    search_query = request.args.get('search', '')  # Get the search query from the URL
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    # Modify the SQL query to include search functionality
-    if search_query:
-        cursor.execute('SELECT * FROM items WHERE status = "pending" AND name LIKE %s', ('%' + search_query + '%',))
-    else:
-        cursor.execute('SELECT * FROM items WHERE status = "pending"')
-
-    items = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return render_template('adminreview.html', items=items)
-
-@app.route('/admin/review/<int:item_id>/<string:action>', methods=['POST'])
-@login_required
-def review_post(item_id, action):
-    if not is_admin(session.get('user_id')):
-        return redirect(url_for('main_index'))
-
-    if action not in ['approve', 'reject']:
-        return redirect(url_for('adminreview'))
-
-    new_status = 'approved' if action == 'approve' else 'rejected'
-
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('UPDATE items SET status = %s WHERE id = %s', (new_status, item_id))
-    conn.commit()
+    cursor.execute('SELECT role FROM users WHERE id = %s', (user_id,))
+    role = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    flash(f'Post has been {new_status}.', 'info')
-    return redirect(url_for('adminreview'))
+    return role and role[0] == 'admin'  # Adjust based on your role management
 
 if __name__ == '__main__':
     app.run(debug=True)  # Start the Flask application

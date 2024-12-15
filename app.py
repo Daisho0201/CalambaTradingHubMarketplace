@@ -991,7 +991,6 @@ def post_item():
                                 VALUES (%s, %s)
                             ''', (item_id, detail_url))
                             
-
                         except Exception as e:
                             print(f"Error uploading detail image: {str(e)}")
 

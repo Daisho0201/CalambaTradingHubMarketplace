@@ -72,8 +72,6 @@ def get_db_connection():
         return connection
     except mysql.connector.Error as err:
         print(f"Error connecting to database: {err}")
-        print(f"Error type: {type(err)}")
-        print(f"Error details: {str(err)}")
         raise
 
 # Function to ensure the 'condition' column exists
@@ -130,9 +128,26 @@ def create_items_table():
         cursor.close()
         conn.close()
 
+# Add name column if it doesn't exist
+def add_name_column():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            ALTER TABLE items 
+            ADD COLUMN name VARCHAR(255) NOT NULL
+        ''')
+        conn.commit()
+    except mysql.connector.Error as err:
+        print(f"Error updating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
 # Call the function to create the items table when the app starts
 with app.app_context():
     create_items_table()
+    add_name_column()  # Call this if you need to ensure the name column exists
 
 # Example in-memory database (replace with a real database for production)
 proofs_data = []

@@ -104,26 +104,35 @@ ensure_condition_column_exists()
 def create_items_table():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(''' 
-        CREATE TABLE IF NOT EXISTS items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            description TEXT NOT NULL,
-            quality ENUM('new', 'used_like_new', 'used_good', 'used_fair') NOT NULL,
-            category VARCHAR(100) NOT NULL,
-            meetup_place VARCHAR(255) NOT NULL,
-            seller_phone VARCHAR(15) NOT NULL,
-            grid_image VARCHAR(255),
-            detail_images TEXT,
-            user_id INT,
-            status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',  -- Add status column
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute(''' 
+            CREATE TABLE IF NOT EXISTS items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                price DECIMAL(10, 2) NOT NULL,
+                description TEXT NOT NULL,
+                quality ENUM('new', 'used_like_new', 'used_good', 'used_fair') NOT NULL,
+                category VARCHAR(100) NOT NULL,
+                meetup_place VARCHAR(255) NOT NULL,
+                seller_phone VARCHAR(15) NOT NULL,
+                grid_image VARCHAR(255),
+                detail_images TEXT,
+                user_id INT,
+                status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',  -- Add status column
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        conn.commit()
+        print("Items table created successfully or already exists.")
+    except mysql.connector.Error as err:
+        print(f"Error creating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Call the function to create the items table when the app starts
+with app.app_context():
+    create_items_table()
 
 # Example in-memory database (replace with a real database for production)
 proofs_data = []

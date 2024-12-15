@@ -72,8 +72,6 @@ def get_db_connection():
         return connection
     except mysql.connector.Error as err:
         print(f"Error connecting to database: {err}")
-        print(f"Error type: {type(err)}")
-        print(f"Error details: {str(err)}")
         raise
 
 # Function to ensure the 'condition' column exists
@@ -104,25 +102,52 @@ ensure_condition_column_exists()
 def create_items_table():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(''' 
-        CREATE TABLE IF NOT EXISTS items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            description TEXT NOT NULL,
-            quality ENUM('new', 'used_like_new', 'used_good', 'used_fair') NOT NULL,
-            category VARCHAR(100) NOT NULL,
-            meetup_place VARCHAR(255) NOT NULL,
-            seller_phone VARCHAR(15) NOT NULL,
-            grid_image VARCHAR(255),
-            detail_images TEXT,
-            user_id INT,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute(''' 
+            CREATE TABLE IF NOT EXISTS items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                price DECIMAL(10, 2) NOT NULL,
+                description TEXT NOT NULL,
+                quality ENUM('new', 'used_like_new', 'used_good', 'used_fair') NOT NULL,
+                category VARCHAR(100) NOT NULL,
+                meetup_place VARCHAR(255) NOT NULL,
+                seller_phone VARCHAR(15) NOT NULL,
+                grid_image VARCHAR(255),
+                detail_images TEXT,
+                user_id INT,
+                status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',  -- Add status column
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        conn.commit()
+        print("Items table created successfully or already exists.")
+    except mysql.connector.Error as err:
+        print(f"Error creating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Add name column if it doesn't exist
+def add_name_column():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            ALTER TABLE items 
+            ADD COLUMN name VARCHAR(255) NOT NULL
+        ''')
+        conn.commit()
+    except mysql.connector.Error as err:
+        print(f"Error updating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Call the function to create the items table when the app starts
+with app.app_context():
+    create_items_table()
+    add_name_column()  # Call this if you need to ensure the name column exists
 
 # Example in-memory database (replace with a real database for production)
 proofs_data = []
@@ -199,18 +224,19 @@ def main_index():
     if 'user_id' not in session:
         return redirect(url_for('homepage'))  # Redirect to homepage if not logged in
 
-    # Fetch items and render the main index
+    # Fetch approved items and render the main index
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute('SELECT id, title as name, price, image_url as grid_image FROM items ORDER BY id DESC')
+        # Update the query to only fetch items with 'approved' status
+        cursor.execute('SELECT id, name, price, grid_image FROM items WHERE status = "approved" ORDER BY id DESC')
         all_items = cursor.fetchall()
 
         cursor.close()
         conn.close()
 
-        print(f"Fetched {len(all_items)} items from the database.")  # Debugging output
+        print(f"Fetched {len(all_items)} approved items from the database.")  # Debugging output
 
         return render_template('main_index.html', all_items=all_items)
 
@@ -651,83 +677,6 @@ def remove_saved_item(item_id):
 
 
 
-@app.route('/adminresponse', methods=['GET'])
-def admin_response():
-    """Renders the admin page with the list of proofs."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT * FROM handle_request")
-        columns = [column[0] for column in cursor.description]  # Get column names
-        requests = [dict(zip(columns, row)) for row in cursor.fetchall()]  # Map rows to dictionaries
-        
-        print("Fetched data:", requests)  # Debugging line to check what data is returned
-        
-        return render_template('adminresponse.html', requests=requests)
-    except Exception as e:
-        flash(f"Error retrieving data: {e}", "danger")
-        return redirect(url_for('admin_response'))
-    finally:
-        cursor.close()
-        conn.close()
-
-
-
-
-
-@app.route('/confirm_request/<string:reference_type>', methods=['POST'])
-def confirm_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Confirmed' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Confirmed', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Confirmed')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been confirmed.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-@app.route('/reject_request/<string:reference_type>', methods=['POST'])
-def reject_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Rejected' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Rejected', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Rejected')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been rejected.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-
-
 
 
 
@@ -1127,6 +1076,79 @@ def add_category_column():
 
 # Call the function to add the column when the application starts
 add_category_column()
+
+def add_status_column():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            ALTER TABLE items 
+            ADD COLUMN status ENUM('pending', 'approved', 'declined') DEFAULT 'pending'
+        ''')
+        conn.commit()
+    except mysql.connector.Error as err:
+        print(f"Error updating items table: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# Call this function when your app starts
+# Add this near the bottom of your file, before the if __name__ == '__main__': line
+update_users_table()
+
+# Add this function to create necessary tables if they don't exist
+def create_detail_images_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create detail_images table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS detail_images (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            item_id INT NOT NULL,
+            image_url VARCHAR(255) NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES items(id)
+        )
+    ''')
+    
+    # Add meetup_place and seller_phone columns to items table if they don't exist
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS meetup_place VARCHAR(255)")
+        cursor.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS seller_phone VARCHAR(20)")
+    except Exception as e:
+        print(f"Note: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# Call this when the app starts
+create_detail_images_table()
+
+def add_category_column():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if the category column exists
+        cursor.execute("SHOW COLUMNS FROM items LIKE 'category'")
+        result = cursor.fetchone()
+
+        # If the column does not exist, add it
+        if not result:
+            cursor.execute("ALTER TABLE items ADD COLUMN category VARCHAR(255)")
+            print("Category column added to items table.")
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    except Error as e:
+        print(f"Error while adding category column: {str(e)}")
+
+# Call the function to add the column when the application starts
+add_category_column()
+
 
 
 if __name__ == '__main__':

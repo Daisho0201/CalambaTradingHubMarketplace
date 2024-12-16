@@ -958,9 +958,9 @@ def post_item():
             cursor = conn.cursor()
             # Changed 'title' to 'name' in the INSERT statement
             cursor.execute('''
-                INSERT INTO items (name, price, description, seller_id)
-                VALUES (%s, %s, %s, %s)
-            ''', (title, price, description, seller_id))
+            INSERT INTO items (title, price, description, seller_id)
+            VALUES (%s, %s, %s, %s)
+        ''', (title, price, description, seller_id))
             # Get the ID of the newly inserted item
             item_id = cursor.lastrowid
             print(f"New item ID: {item_id}")

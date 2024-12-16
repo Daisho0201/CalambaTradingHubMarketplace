@@ -940,71 +940,111 @@ create_items_table()
 @app.route('/post_item', methods=['GET', 'POST'])
 @login_required
 def post_item():
+    conn = None
+    cursor = None
     try:
         if request.method == 'POST':
+            # Validate required form fields
+            required_fields = ['item_name', 'item_price', 'item_desc']
+            for field in required_fields:
+                if field not in request.form:
+                    raise ValueError(f"Missing required field: {field}")
+
             # Get form data
-            title = request.form['item_name']
-            price = request.form['item_price']
-            description = request.form['item_desc']
-            meetup_place = request.form.get('meetup_place', 'To be discussed')  # New field
-            seller_phone = request.form.get('seller_phone', 'Contact through chat')  # New field
+            title = request.form['item_name'].strip()
+            price = request.form['item_price'].strip()
+            description = request.form['item_desc'].strip()
+            meetup_place = request.form.get('meetup_place', 'To be discussed').strip()
+            seller_phone = request.form.get('seller_phone', 'Contact through chat').strip()
             seller_id = session.get('user_id')
             
+            if not seller_id:
+                raise ValueError("No seller_id found in session")
+
+            # Validate price format
+            try:
+                float(price)
+            except ValueError:
+                raise ValueError("Invalid price format")
+
             # Handle main image upload
             image_url = DEFAULT_IMAGE_URL
             if 'grid_image' in request.files:
                 grid_image = request.files['grid_image']
                 if grid_image and grid_image.filename != '':
+                    if not allowed_file(grid_image.filename):  # You'll need to implement this function
+                        raise ValueError("Invalid file type for main image")
                     try:
                         upload_result = cloudinary.uploader.upload(grid_image)
                         image_url = upload_result['secure_url']
                         print(f"Main image uploaded: {image_url}")
                     except Exception as e:
-                        print(f"Error uploading main image: {str(e)}")
+                        raise Exception(f"Cloudinary upload failed for main image: {str(e)}")
 
+            # Database operations
             conn = get_db_connection()
             cursor = conn.cursor()
-
-            # Insert the main item with meetup_place and seller_phone
-            cursor.execute('''
-                INSERT INTO items (title, price, description, seller_id, image_url, meetup_place, seller_phone)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ''', (title, price, description, seller_id, image_url, meetup_place, seller_phone))
             
-            item_id = cursor.lastrowid
-            print(f"New item inserted with ID: {item_id}")
+            # Insert the main item
+            try:
+                cursor.execute('''
+                    INSERT INTO items (title, price, description, seller_id, image_url, meetup_place, seller_phone)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                ''', (title, price, description, seller_id, image_url, meetup_place, seller_phone))
+                
+                item_id = cursor.fetchone()[0]
+                print(f"New item inserted with ID: {item_id}")
+            except Exception as e:
+                raise Exception(f"Database insert failed for main item: {str(e)}")
 
             # Handle additional images
             if 'detail_images' in request.files:
                 detail_files = request.files.getlist('detail_images')
                 for detail_image in detail_files:
                     if detail_image and detail_image.filename != '':
+                        if not allowed_file(detail_image.filename):
+                            continue  # Skip invalid files
                         try:
                             upload_result = cloudinary.uploader.upload(detail_image)
                             detail_url = upload_result['secure_url']
                             print(f"Detail image uploaded: {detail_url}")
                             
-                            # Insert into detail_images table
                             cursor.execute('''
                                 INSERT INTO detail_images (item_id, image_url)
                                 VALUES (%s, %s)
                             ''', (item_id, detail_url))
                             
                         except Exception as e:
-                            print(f"Error uploading detail image: {str(e)}")
+                            print(f"Warning: Failed to upload detail image: {str(e)}")
+                            # Continue with other images even if one fails
+                            continue
 
             conn.commit()
-            cursor.close()
-            conn.close()
-
             return redirect(url_for('main_index'))
 
         return render_template('post_item.html')
 
+    except ValueError as e:
+        print(f"Validation error in post_item: {str(e)}")
+        if conn:
+            conn.rollback()
+        flash(str(e), 'error')
+        return render_template('post_item.html', error=str(e))
+
     except Exception as e:
         print(f"Error in post_item route: {str(e)}")
         print(traceback.format_exc())
-        return "An error occurred", 500
+        if conn:
+            conn.rollback()
+        flash("An unexpected error occurred. Please try again.", 'error')
+        return render_template('post_item.html', error="An unexpected error occurred")
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # Add this new route to handle profile picture updates
 @app.route('/update_profile_picture', methods=['POST'])

@@ -947,36 +947,48 @@ def post_item():
             price = request.form['item_price']
             description = request.form['item_desc']
             seller_id = session.get('user_id')
+
             # Debug prints
             print("Form data received:")
             print(f"Title: {title}")
             print(f"Price: {price}")
             print(f"Description: {description}")
             print(f"Seller ID: {seller_id}")
+
             # Connect to database
             conn = get_db_connection()
             cursor = conn.cursor()
-            # Changed 'title' to 'name' in the INSERT statement
+
+            # Ensure all required fields are included and 'title' is mapped to 'name' in the table
             cursor.execute('''
-            INSERT INTO items (title, price, description, seller_id)
+            INSERT INTO items (name, price, description, seller_id)
             VALUES (%s, %s, %s, %s)
-        ''', (title, price, description, seller_id))
+            ''', (title, price, description, seller_id))
+
             # Get the ID of the newly inserted item
             item_id = cursor.lastrowid
             print(f"New item ID: {item_id}")
+
+            # Commit changes to the database
             conn.commit()
+
+            # Close database connections
             cursor.close()
             conn.close()
+
             # Redirect to the main page after successful insertion
             return redirect(url_for('main_index'))
+
         # If it's a GET request, just show the form
         return render_template('post_item.html')
+
     except Exception as e:
         print(f"Error in post_item route: {str(e)}")
         print(f"Error type: {type(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         return "An error occurred", 500
+
 
 # Add this new route to handle profile picture updates
 @app.route('/update_profile_picture', methods=['POST'])

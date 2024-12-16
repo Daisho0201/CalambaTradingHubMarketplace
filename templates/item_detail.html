@@ -162,98 +162,12 @@
                             </button>
                         </form>
                     </div>
-                    
-                    <!-- Buy Now Button -->
-                    <div class="w-50">
-                        <button type="button" 
-                                class="btn w-100 py-3 d-flex align-items-center justify-content-center gap-2 fw-semibold"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#proofModal"
-                                onclick="setItemDetails('{{ item.name }}')"
-                                style="background-color: #D10024; color: white;">
-                            <i class="fas fa-shopping-cart"></i>
-                            Buy Now
-                        </button>
-                    </div>
                 </div>
-                
-                <!-- Bottom row with reference type form -->
-                <form id="purchaseForm" action="/proceed_purchase/{{ item.id }}" method="post" class="w-100">
-                    <div class="input-group">
-                        <input type="text" 
-                               id="referenceType" 
-                               name="referenceType" 
-                               class="form-control form-control-lg" 
-                               placeholder="Enter Reference Type" 
-                               required>
-                        <button type="button" 
-                                id="checkStatusBtn" 
-                                class="btn btn-primary d-flex align-items-center gap-2 fw-semibold">
-                            <i class="fas fa-search"></i>
-                            Check Status
-                        </button>
-                    </div>
-                </form>
-                
                 <p id="statusDisplay" class="alert alert-info text-center mb-0" style="display: none;"></p>
             </div>
             
             {% endif %}
-            <!-- Modal -->
-            <div class="modal fade" id="proofModal" tabindex="-1" aria-labelledby="proofModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <form action="{{ url_for('submit_proof') }}" method="POST" enctype="multipart/form-data" id="submitProofForm">
-                        <!-- Hidden field for item_id -->
-                        <input type="hidden" name="item_id" value="{{ item.id }}">
-                    
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="proofModalLabel">Submit Proof of Payment</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label for="sender_name" class="form-label">Sender Name</label>
-                                    <input type="text" class="form-control" id="sender_name" name="sender_name" required pattern="[A-Z][a-zA-Z\s]*" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);" title="The name must start with a capital letter">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="sender_number" class="form-label">Sender Number</label>
-                                    <input type="number" class="form-control" id="sender_number" name="sender_number" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="reference_type" class="form-label">Reference Type</label>
-                                    <input type="text" class="form-control" id="reference_type" name="reference_type" required pattern="[A-Z0-9]*" oninput="this.value = this.value.toUpperCase();" title="Only uppercase letters and numbers are allowed">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="item_name" class="form-label">Item Name</label>
-                                    <textarea class="form-control" id="item_name" name="item_name" rows="3" readonly>{{ item.name }}</textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="screenshot" class="form-label">Upload Screenshot</label>
-                                    <input type="file" class="form-control" id="screenshot" name="screenshot" accept="image/*" required>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" 
-                                        class="btn d-flex align-items-center justify-content-center gap-2 fw-semibold" 
-                                        data-bs-dismiss="modal"
-                                        style="background-color: #1E1F29 !important; color: white;">
-                                    <i class="fas fa-times"></i>
-                                    Cancel
-                                </button>
-                                <button type="submit" 
-                                        class="btn d-flex align-items-center justify-content-center gap-2 fw-semibold"
-                                        style="background-color: #D10024 !important; color: white;">
-                                    <i class="fas fa-check"></i>
-                                    Submit Proof
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
 
-        
             <div class="contact-section">
                 <div class="meet-up">
                     <h5 class="mb-2"><i class="fas fa-map-marker-alt me-2"></i>Meet-up Location</h5>

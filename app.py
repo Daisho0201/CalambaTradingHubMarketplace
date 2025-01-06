@@ -646,194 +646,6 @@ def remove_saved_item(item_id):
         cursor.close()
         conn.close()
 
-
-
-
-
-
-@app.route('/adminresponse', methods=['GET'])
-def admin_response():
-    """Renders the admin page with the list of proofs."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT * FROM handle_request")
-        columns = [column[0] for column in cursor.description]  # Get column names
-        requests = [dict(zip(columns, row)) for row in cursor.fetchall()]  # Map rows to dictionaries
-        
-        print("Fetched data:", requests)  # Debugging line to check what data is returned
-        
-        return render_template('adminresponse.html', requests=requests)
-    except Exception as e:
-        flash(f"Error retrieving data: {e}", "danger")
-        return redirect(url_for('admin_response'))
-    finally:
-        cursor.close()
-        conn.close()
-
-
-
-
-
-@app.route('/confirm_request/<string:reference_type>', methods=['POST'])
-def confirm_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Confirmed' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Confirmed', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Confirmed')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been confirmed.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-@app.route('/reject_request/<string:reference_type>', methods=['POST'])
-def reject_request(reference_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update the status to 'Rejected' in the handle_request table
-        cursor.execute("UPDATE handle_request SET status = %s WHERE reference_type = %s", ('Rejected', reference_type))
-        # Log the status change in the status_history table
-        cursor.execute(
-            "INSERT INTO status_history (reference_type, status) VALUES (%s, %s)",
-            (reference_type, 'Rejected')
-        )
-        conn.commit()
-        flash(f"Request with reference type {reference_type} has been rejected.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error updating status: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('admin_response'))
-
-
-
-
-
-
-
-
-@app.route('/submit_proof', methods=['POST'])
-def submit_proof():
-    sender_name = request.form.get('sender_name')
-    sender_number = request.form.get('sender_number')
-    reference_type = request.form.get('reference_type')
-    screenshot_file = request.files.get('screenshot')
-    item_name = request.form.get('item_name')
-    item_id = request.form.get('item_id')
-
-    # Validate screenshot and item_name
-    if not item_name:
-        flash("Item name is required.", "danger")
-        return redirect(url_for('item_detail', item_id=item_id))
-
-    if not screenshot_file or screenshot_file.filename == '':
-        flash("Screenshot is required. Please upload a screenshot of the payment.", "danger")
-        return redirect(url_for('item_detail', item_id=item_id))
-
-    # Process the screenshot and save it
-    file_path = f"static/uploads/{screenshot_file.filename}"
-    screenshot_file.save(file_path)
-
-    # Insert proof of payment
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        query = """
-        INSERT INTO handle_request (sender_name, sender_number, reference_type, screenshot, status, item_name)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (sender_name, sender_number, reference_type, file_path, 'Pending', item_name))
-        conn.commit()
-        flash("Proof of payment has been successfully submitted. Your request is now pending approval.", "success")
-    except Exception as e:
-        conn.rollback()
-        flash(f"Error while submitting proof of payment: {e}", "danger")
-    finally:
-        cursor.close()
-        conn.close()
-
-    return redirect(url_for('item_detail', item_id=item_id))
-
-
-
-
-@app.route('/check_status')
-def check_status():
-    reference_type = request.args.get('referenceType')
-
-    if not reference_type:
-        return jsonify({"error": "Reference type is required."}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    # Query the database for the reference type
-    cursor.execute("""
-        SELECT status FROM handle_request WHERE reference_type = %s
-    """, (reference_type,))
-    
-    record = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if record:
-        return jsonify({"status": record['status']})
-    return jsonify({"error": "Reference type not found."}), 404
-
-
-
-
-
-@app.route('/proceed_purchase/<int:item_id>', methods=['POST'])
-def proceed_purchase(item_id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("""
-        SELECT items.*, users.username
-        FROM items
-        JOIN users ON items.user_id = users.id
-        WHERE items.id = %s
-    """, (item_id,))
-    
-    item = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if item:
-        buyer_name = "John Doe"  # Replace with session/user data if available
-        contact_info = "johndoe@example.com"  # Replace with session/user data if available
-        
-        return render_template(
-            'purchasesuccess.html', 
-            buyer_name=buyer_name,
-            contact_info=contact_info,
-            item=item
-        )
-    else:
-        return "Item not found", 404
-
-
 # Route for login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -944,14 +756,18 @@ def post_item():
         if request.method == 'POST':
             # Get form data with fallback values
             title = request.form.get('item_name', 'Unnamed Item')
-            price = request.form['item_price']
-            description = request.form['item_desc']
+            price = request.form.get('item_price')  # Ensure price is retrieved correctly
+            description = request.form.get('item_desc', '')  # Fallback to empty string if no description
             meetup_place = request.form.get('meetup_place', 'To be discussed')
             seller_phone = request.form.get('seller_phone', 'Contact through chat')
             seller_id = session.get('user_id')
 
+            # Validate price
+            if not price:
+                return "Price is required", 400
+
             # Handle main image upload
-            image_url = DEFAULT_IMAGE_URL
+            image_url = DEFAULT_IMAGE_URL  # Default image in case no file is uploaded
             if 'grid_image' in request.files:
                 grid_image = request.files['grid_image']
                 if grid_image and grid_image.filename != '':
@@ -961,7 +777,9 @@ def post_item():
                         print(f"Main image uploaded: {image_url}")
                     except Exception as e:
                         print(f"Error uploading main image: {str(e)}")
+                        return "Error uploading image", 500  # Handle image upload error gracefully
 
+            # Connect to the database
             conn = get_db_connection()
             cursor = conn.cursor()
 
@@ -991,6 +809,7 @@ def post_item():
                             ''', (item_id, detail_url))
                         except Exception as e:
                             print(f"Error uploading detail image: {str(e)}")
+                            return "Error uploading detail image", 500  # Handle additional image upload errors
 
             conn.commit()
             cursor.close()

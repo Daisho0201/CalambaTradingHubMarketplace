@@ -946,47 +946,64 @@ def post_item():
             title = request.form['item_name']
             price = request.form['item_price']
             description = request.form['item_desc']
+            meetup_place = request.form.get('meetup_place', 'To be discussed')  # New field
+            seller_phone = request.form.get('seller_phone', 'Contact through chat')  # New field
             seller_id = session.get('user_id')
+            
+            # Handle main image upload
+            image_url = DEFAULT_IMAGE_URL
+            if 'grid_image' in request.files:
+                grid_image = request.files['grid_image']
+                if grid_image and grid_image.filename != '':
+                    try:
+                        upload_result = cloudinary.uploader.upload(grid_image)
+                        image_url = upload_result['secure_url']
+                        print(f"Main image uploaded: {image_url}")
+                    except Exception as e:
+                        print(f"Error uploading main image: {str(e)}")
 
-            # Debug prints
-            print("Form data received:")
-            print(f"Title: {title}")
-            print(f"Price: {price}")
-            print(f"Description: {description}")
-            print(f"Seller ID: {seller_id}")
-
-            # Connect to database
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Ensure all required fields are included and 'title' is mapped to 'name' in the table
+            # Insert the main item with meetup_place and seller_phone
             cursor.execute('''
-            INSERT INTO items (name, price, description, seller_id)
-            VALUES (%s, %s, %s, %s)
-            ''', (title, price, description, seller_id))
-
-            # Get the ID of the newly inserted item
+                INSERT INTO items (title, price, description, seller_id, image_url, meetup_place, seller_phone)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''', (title, price, description, seller_id, image_url, meetup_place, seller_phone))
+            
             item_id = cursor.lastrowid
-            print(f"New item ID: {item_id}")
+            print(f"New item inserted with ID: {item_id}")
 
-            # Commit changes to the database
+            # Handle additional images
+            if 'detail_images' in request.files:
+                detail_files = request.files.getlist('detail_images')
+                for detail_image in detail_files:
+                    if detail_image and detail_image.filename != '':
+                        try:
+                            upload_result = cloudinary.uploader.upload(detail_image)
+                            detail_url = upload_result['secure_url']
+                            print(f"Detail image uploaded: {detail_url}")
+                            
+                            # Insert into detail_images table
+                            cursor.execute('''
+                                INSERT INTO detail_images (item_id, image_url)
+                                VALUES (%s, %s)
+                            ''', (item_id, detail_url))
+                            
+                        except Exception as e:
+                            print(f"Error uploading detail image: {str(e)}")
+
             conn.commit()
-
-            # Close database connections
             cursor.close()
             conn.close()
 
-            # Redirect to the main page after successful insertion
             return redirect(url_for('main_index'))
 
-        # If it's a GET request, just show the form
         return render_template('post_item.html')
 
     except Exception as e:
         print(f"Error in post_item route: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        print(traceback.format_exc())
         return "An error occurred", 500
 
 

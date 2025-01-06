@@ -942,14 +942,14 @@ create_items_table()
 def post_item():
     try:
         if request.method == 'POST':
-            # Get form data
-            title = request.form['item_name']
+            # Get form data with fallback values
+            title = request.form.get('item_name', 'Unnamed Item')
             price = request.form['item_price']
             description = request.form['item_desc']
-            meetup_place = request.form.get('meetup_place', 'To be discussed')  # New field
-            seller_phone = request.form.get('seller_phone', 'Contact through chat')  # New field
+            meetup_place = request.form.get('meetup_place', 'To be discussed')
+            seller_phone = request.form.get('seller_phone', 'Contact through chat')
             seller_id = session.get('user_id')
-            
+
             # Handle main image upload
             image_url = DEFAULT_IMAGE_URL
             if 'grid_image' in request.files:
@@ -965,12 +965,12 @@ def post_item():
             conn = get_db_connection()
             cursor = conn.cursor()
 
-            # Insert the main item with meetup_place and seller_phone
+            # Insert the main item
             cursor.execute('''
-                INSERT INTO items (title, price, description, seller_id, image_url, meetup_place, seller_phone)
+                INSERT INTO items (name, price, description, seller_id, image_url, meetup_place, seller_phone)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (title, price, description, seller_id, image_url, meetup_place, seller_phone))
-            
+
             item_id = cursor.lastrowid
             print(f"New item inserted with ID: {item_id}")
 
@@ -983,13 +983,12 @@ def post_item():
                             upload_result = cloudinary.uploader.upload(detail_image)
                             detail_url = upload_result['secure_url']
                             print(f"Detail image uploaded: {detail_url}")
-                            
+
                             # Insert into detail_images table
                             cursor.execute('''
                                 INSERT INTO detail_images (item_id, image_url)
                                 VALUES (%s, %s)
                             ''', (item_id, detail_url))
-                            
                         except Exception as e:
                             print(f"Error uploading detail image: {str(e)}")
 
@@ -1004,7 +1003,7 @@ def post_item():
     except Exception as e:
         print(f"Error in post_item route: {str(e)}")
         print(traceback.format_exc())
-        return "An error occurred", 500
+        return "An error occurred while posting the item.", 500
 
 
 # Add this new route to handle profile picture updates
